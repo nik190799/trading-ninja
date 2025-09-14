@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Predictions Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d0d0d; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .card { background-color: #1a1a1a; border: 1px solid #2d2d2d; }
+        .table-header { background-color: #262626; }
+        .text-accent { color: #f97316; }
+        .positive-change { color: #fb923c; }
+        .negative-change { color: #a1a1aa; }
+        .tab { border-bottom: 2px solid transparent; transition: all 0.2s ease-in-out; }
+        .tab.active { border-bottom-color: #f97316; color: #f97316; }
+        .tab:hover:not(.active) { border-bottom-color: #444; }
+        .sortable-header { cursor: pointer; user-select: none; }
+        .sortable-header:hover { color: #fff; }
+        .sort-icon { display: inline-block; transition: transform 0.2s ease; opacity: 0.6; }
+        .expandable-row { cursor: pointer; }
+        .history-row { display: none; }
+        .history-row.expanded { display: table-row; }
+        .history-content { background-color: #111; }
+        .expand-icon { transition: transform 0.3s ease-in-out; }
+        .expanded .expand-icon { transform: rotate(90deg); }
+        .progress-bar-bg { background-color: #404040; border-radius: 4px; overflow: hidden; height: 8px; }
+        .progress-bar { background-color: #f97316; height: 100%; border-radius: 4px; transition: width 0.5s ease-in-out; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; translateY(0); } }
+    </style>
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-start mb-6">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold text-white">AI Financial Predictions</h1>
+                <p class="text-gray-400">Forecasting for <span class="font-semibold text-accent">2025-09-19</span>, powered by Grok-4</p>
+            </div>
+            <p id="last-updated" class="text-sm text-gray-500 text-right whitespace-nowrap pt-2">Loading...</p>
+        </header>
+
+        <main>
+            <div class="mb-4 flex space-x-6 border-b border-gray-700">
+                <button id="tab-stocks" class="tab active py-2 px-1 text-lg font-medium">Stocks</button>
+                <button id="tab-crypto" class="tab py-2 px-1 text-lg font-medium">Crypto</button>
+            </div>
+
+            <div id="loading" class="text-center py-10"><p class="text-lg">Fetching predictions...</p></div>
+            <div id="error" class="hidden text-center py-10 card rounded-lg"><p class="text-lg text-red-400">Could not load prediction data.</p></div>
+
+            <div id="predictions-container" class="hidden card rounded-lg shadow-lg overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="table-header text-gray-300 uppercase text-xs">
+                        <tr>
+                            <th class="p-3 sm:p-4 w-1/4">Ticker</th>
+                            <th class="p-3 sm:p-4 text-right">Current Price</th>
+                            <th id="sort-price" class="p-3 sm:p-4 text-right sortable-header">Target Price <span class="sort-icon"></span></th>
+                            <th class="p-3 sm:p-4 w-1/4">Progress to Target</th>
+                        </tr>
+                    </thead>
+                    <tbody id="predictions-table-body" class="divide-y divide-gray-800"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // DOM Elements
+        const loadingDiv = document.getElementById('loading'), errorDiv = document.getElementById('error');
+        const containerDiv = document.getElementById('predictions-container'), tableBody = document.getElementById('predictions-table-body');
+        const lastUpdatedP = document.getElementById('last-updated'), tabStocks = document.getElementById('tab-stocks');
+        const tabCrypto = document.getElementById('tab-crypto'), sortPriceBtn = document.getElementById('sort-price');
+
+        // State Management
+        let allPredictions = [], groupedPredictions = {};
+        let activeTab = 'Stock', currentSort = { column: 'PredictionDate', direction: 'desc' };
+        const RUN_INTERVAL_MINUTES = 5;
+
+        // --- DATA FETCHING & PROCESSING ---
+        async function fetchPredictions() {
+            try {
+                const response = await fetch('/api/predictions');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                allPredictions = await response.json();
+
+                if (allPredictions.length > 0) {
+                    lastUpdatedP.textContent = `Last Updated: ${new Date(allPredictions[0].PredictionDate).toLocaleString()}`;
+                    processPredictions();
+                } else {
+                    lastUpdatedP.textContent = 'No predictions available yet.';
+                }
+
+                renderTable();
+                loadingDiv.classList.add('hidden');
+                containerDiv.classList.remove('hidden');
+                errorDiv.classList.add('hidden');
+            } catch (e) {
+                console.error("Failed to fetch predictions:", e);
+                loadingDiv.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+            }
+        }
+
+        function processPredictions() {
+            groupedPredictions = {};
+            allPredictions.forEach(p => {
+                if (!groupedPredictions[p.Ticker]) groupedPredictions[p.Ticker] = [];
+                groupedPredictions[p.Ticker].push(p);
+            });
+            for (const ticker in groupedPredictions) {
+                groupedPredictions[ticker].sort((a, b) => new Date(b.PredictionDate) - new Date(a.PredictionDate));
+            }
+        }
+
+        // --- RENDERING ---
+        function renderTable() {
+            tableBody.innerHTML = '';
+            let dataToRender = Object.values(groupedPredictions)
+                .map(preds => preds[0])
+                .filter(p => p.Type === activeTab);
+
+            dataToRender.sort((a, b) => {
+                const col = currentSort.column;
+                let valA = (col === 'TargetPrice') ? parseFloat(a[col]) : a[col];
+                let valB = (col === 'TargetPrice') ? parseFloat(b[col]) : b[col];
+                if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            if (dataToRender.length === 0) {
+                 tableBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-500">No predictions found for ${activeTab}.</td></tr>`;
+                 return;
+            }
+
+            dataToRender.forEach(p => {
+                const history = groupedPredictions[p.Ticker].slice(1);
+                tableBody.innerHTML += createRowHtml(p, history);
+            });
+            updateSortIcons();
+        }
+
+        function createRowHtml(latest, history) {
+            const priceNow = parseFloat(latest.CurrentPriceAtPrediction);
+            const priceTarget = parseFloat(latest.TargetPrice);
+
+            // Progress for historical predictions is based on the latest known price (priceNow)
+            // For the latest prediction, this calculation isn't relevant yet. We show the historical progress below.
+            const hasHistory = history.length > 0;
+
+            let mainRow = `
+                <tr id="ticker-${latest.Ticker}" class="${hasHistory ? 'expandable-row' : ''} fade-in" ${hasHistory ? `onclick="toggleHistory('${latest.Ticker}')"` : ''}>
+                    <td class="p-3 sm:p-4">
+                        <div class="flex items-center">
+                            ${hasHistory ? `<svg class="expand-icon w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>` : '<div class="w-4 h-4 mr-2"></div>'}
+                            <span class="font-bold">${latest.Ticker}</span>
+                        </div>
+                    </td>
+                    <td class="p-3 sm:p-4 text-right font-mono">${priceNow ? `$${formatNumber(priceNow)}` : '<span class="text-gray-500">...</span>'}</td>
+                    <td class="p-3 sm:p-4 text-right font-mono text-accent">$${formatNumber(priceTarget)}</td>
+                    <td class="p-3 sm:p-4">
+                        <div class="flex items-center">
+                            <div class="w-full progress-bar-bg mr-2"><div class="progress-bar" style="width:0%"></div></div>
+                            <span class="text-xs w-10 text-right text-gray-500">0%</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            if (hasHistory) {
+                let historyContent = history.map(h => {
+                     const hPriceThen = parseFloat(h.CurrentPriceAtPrediction);
+                     const hPriceTarget = parseFloat(h.TargetPrice);
+                     let hProgress = 0;
+                     if (hPriceTarget !== hPriceThen) {
+                        hProgress = ((priceNow - hPriceThen) / (hPriceTarget - hPriceThen)) * 100;
+                     }
+                     const hClampedProgress = Math.max(0, Math.min(100, hProgress));
+
+                     return `
+                        <div class="grid grid-cols-3 items-center text-xs p-3 border-t border-gray-800 gap-2">
+                           <div class="text-gray-400">${new Date(h.PredictionDate).toLocaleString()}</div>
+                           <div class="text-right">
+                                <span class="text-gray-500">Pred: </span>
+                                <span class="font-mono text-accent">$${formatNumber(h.TargetPrice)}</span>
+                           </div>
+                           <div class="flex items-center">
+                                <div class="w-full progress-bar-bg mr-2"><div class="progress-bar" style="width:${hClampedProgress}%"></div></div>
+                                <span class="text-xs w-10 text-right">${hProgress.toFixed(0)}%</span>
+                           </div>
+                        </div>`;
+                }).join('');
+                mainRow += `<tr id="history-${latest.Ticker}" class="history-row"><td colspan="4" class="p-0"><div class="history-content p-2">${historyContent}</div></td></tr>`;
+            }
+            return mainRow;
+        }
+
+        // --- UI AND EVENT HANDLERS ---
+        function toggleHistory(ticker) {
+            document.getElementById(`ticker-${ticker}`).classList.toggle('expanded');
+            document.getElementById(`history-${ticker}`).classList.toggle('expanded');
+        }
+
+        function handleTabClick(selectedTab) {
+            activeTab = selectedTab;
+            tabStocks.classList.toggle('active', activeTab === 'Stock');
+            tabCrypto.classList.toggle('active', activeTab === 'Crypto');
+            renderTable();
+        }
+
+        function handleSortClick(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'desc';
+            }
+            renderTable();
+        }
+
+        function updateSortIcons() {
+            document.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '');
+            if(sortPriceBtn) sortPriceBtn.querySelector('.sort-icon').textContent = currentSort.column === 'TargetPrice' ? (currentSort.direction === 'asc' ? '▲' : '▼') : '';
+        }
+
+        // --- UTILITIES ---
+        function formatNumber(numStr) {
+            const num = parseFloat(numStr);
+            if (isNaN(num)) return 'N/A';
+            const options = num > 10 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { minimumFractionDigits: 2, maximumFractionDigits: 6 };
+            return num.toLocaleString('en-US', options);
+        }
+
+        // --- INITIALIZATION ---
+        tabStocks.addEventListener('click', () => handleTabClick('Stock'));
+        tabCrypto.addEventListener('click', () => handleTabClick('Crypto'));
+        sortPriceBtn.addEventListener('click', () => handleSortClick('TargetPrice'));
+
+        fetchPredictions();
+        setInterval(fetchPredictions, RUN_INTERVAL_MINUTES * 60 * 1000); // Refresh all predictions on schedule
+    </script>
+</body>
+</html>
+
