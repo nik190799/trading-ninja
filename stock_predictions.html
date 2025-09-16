@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Prediction Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827;
+            color: #d1d5db;
+        }
+        .table-row-fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .price-up { animation: price-up-flash 1.5s ease-out; }
+        @keyframes price-up-flash {
+            0% { background-color: rgba(16, 185, 129, 0.3); }
+            100% { background-color: transparent; }
+        }
+        .price-down { animation: price-down-flash 1.5s ease-out; }
+        @keyframes price-down-flash {
+            0% { background-color: rgba(239, 68, 68, 0.3); }
+            100% { background-color: transparent; }
+        }
+        .price-up-text { color: #10b981; }
+        .price-down-text { color: #ef4444; }
+        .price-neutral-text { color: #6b7280; }
+        .clickable-row { cursor: pointer; }
+        .clickable-row:hover { background-color: #1f2937; }
+        .active-row { background-color: #374151; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="min-h-screen w-full p-4 sm:p-6 lg:p-8">
+        <div class="max-w-screen-2xl mx-auto">
+            <!-- Header -->
+            <header class="mb-6">
+                <h1 class="text-3xl font-bold text-white tracking-tight">AI Stock & Crypto Dashboard</h1>
+                <p class="text-gray-400 mt-1">Live market predictions with trend analysis and paper trading.</p>
+                <div id="update-container" class="mt-4 p-3 bg-gray-900/50 border border-gray-700 rounded-lg flex items-center justify-between text-sm">
+                    <div><span class="text-gray-300">Last Updated: <span id="last-updated" class="font-medium text-white"></span></span></div>
+                    <div><span class="text-gray-300">Next Update in: <span id="countdown" class="font-medium text-white"></span></span></div>
+                </div>
+            </header>
+
+            <!-- Main Content Grid -->
+            <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column: Predictions Table -->
+                <div class="lg:col-span-2">
+                     <div class="overflow-x-auto bg-gray-900/50 border border-gray-800 rounded-xl shadow-lg">
+                        <table class="min-w-full divide-y divide-gray-800">
+                            <thead class="bg-gray-800/60 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Ticker</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Current Price</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Predicted Price</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Prediction Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stock-table-body" class="bg-gray-900 divide-y divide-gray-800">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right Column: Details, Chart, Trading -->
+                <div id="details-panel" class="bg-gray-900/50 border border-gray-800 rounded-xl shadow-lg p-6 space-y-6">
+                    <!-- Placeholder shown on load -->
+                     <div id="details-placeholder" class="text-center text-gray-500 flex flex-col items-center justify-center h-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" /></svg>
+                        <p>Select a ticker to view details, chart, and trading options.</p>
+                    </div>
+
+                    <!-- Content shown when a ticker is selected -->
+                    <div id="details-content" class="hidden space-y-6">
+                        <!-- Ticker Header -->
+                        <div>
+                            <h2 id="details-ticker" class="text-2xl font-bold text-white"></h2>
+                            <p class="text-sm text-gray-400">Target Date: <span id="details-target-date"></span></p>
+                        </div>
+
+                        <!-- Price Info -->
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="bg-gray-800/50 p-3 rounded-lg">
+                                <p class="text-gray-400">Current Price</p>
+                                <p id="details-current-price" class="text-lg font-semibold text-white"></p>
+                            </div>
+                             <div class="bg-gray-800/50 p-3 rounded-lg">
+                                <p class="text-gray-400">AI Predicted Price</p>
+                                <p id="details-predicted-price" class="text-lg font-semibold text-white"></p>
+                            </div>
+                        </div>
+
+                        <!-- Prediction Chart -->
+                        <div>
+                            <h3 class="text-md font-semibold text-white mb-2">Prediction History</h3>
+                            <div class="bg-gray-800/50 p-2 rounded-lg"><canvas id="predictionChart"></canvas></div>
+                        </div>
+
+                        <!-- AI Reasoning -->
+                        <div>
+                            <h3 class="text-md font-semibold text-white">AI Reasoning</h3>
+                            <p id="details-reasoning" class="text-sm text-gray-400 bg-gray-800/50 p-3 rounded-lg mt-2 max-h-32 overflow-y-auto"></p>
+                        </div>
+
+                        <!-- Paper Trading -->
+                        <div>
+                             <h3 class="text-md font-semibold text-white mb-2">Paper Trading</h3>
+                             <div class="bg-gray-800/50 p-4 rounded-lg space-y-4">
+                                <div class="flex items-center space-x-4">
+                                    <input type="number" id="trade-shares" class="bg-gray-900 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="Shares" min="1">
+                                    <button id="buy-btn" class="w-full text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-800 font-medium rounded-lg text-sm px-5 py-2.5">Buy</button>
+                                    <button id="sell-btn" class="w-full text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:ring-red-800 font-medium rounded-lg text-sm px-5 py-2.5">Sell</button>
+                                </div>
+                                <div id="potential-trade-profit" class="text-xs text-center text-gray-400 pt-2 border-t border-gray-700/50"></div>
+                                <div id="trade-error" class="text-red-400 text-xs hidden"></div>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Portfolio Section -->
+            <footer class="mt-6">
+                 <h2 class="text-xl font-bold text-white mb-3">My Paper Portfolio</h2>
+                 <div class="bg-gray-900/50 border border-gray-800 rounded-xl shadow-lg p-4">
+                    <div id="portfolio-summary" class="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <!-- Summary stats filled by JS -->
+                    </div>
+                    <div class="overflow-x-auto">
+                         <table class="min-w-full divide-y divide-gray-800">
+                            <thead class="bg-gray-800/60">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Ticker</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Shares</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Avg. Cost</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Current Value</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">P/L</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">AI Potential P/L</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolio-body" class="bg-gray-900 divide-y divide-gray-800">
+                                <!-- Portfolio rows filled by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                 </div>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const STOCKS_TO_TRACK = [ 'TSLA', 'NVDA', 'GOOGL', 'AMZN', 'SOFI', 'GME', 'ADBE', 'BTC', 'ETH' ];
+            const stockDataStore = new Map();
+            const UPDATE_INTERVAL = 5 * 60 * 1000;
+            const API_BASE_URL = 'http://127.0.0.1:5000';
+
+            let countdownInterval, activeTicker = null, chartInstance = null, userId = null;
+
+            const countdownEl = document.getElementById('countdown');
+            const lastUpdatedEl = document.getElementById('last-updated');
+            const tableBodyEl = document.getElementById('stock-table-body');
+            const portfolioBodyEl = document.getElementById('portfolio-body');
+
+            // --- User and Portfolio Management ---
+            function initializeUser() {
+                userId = localStorage.getItem('stockDashUserId');
+                if (!userId) {
+                    userId = 'user-' + Date.now() + Math.random().toString(16).substr(2, 8);
+                    localStorage.setItem('stockDashUserId', userId);
+                }
+                console.log("User ID:", userId);
+            }
+
+            async function fetchPortfolio() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/portfolio/${userId}`);
+                    if (!response.ok) throw new Error('Failed to fetch portfolio');
+                    const portfolio = await response.json();
+                    renderPortfolio(portfolio);
+                } catch (error) {
+                    console.error("Portfolio fetch error:", error);
+                }
+            }
+
+            async function executeTrade(ticker, action, shares, price) {
+                const errorEl = document.getElementById('trade-error');
+                errorEl.classList.add('hidden');
+                try {
+                    const response = await fetch(`${API_BASE_URL}/trade`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId, ticker, action, shares, price })
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Trade failed');
+                    }
+                    document.getElementById('trade-shares').value = '';
+                    fetchPortfolio(); // Refresh portfolio after trade
+                } catch (error) {
+                    console.error(`Trade error:`, error);
+                    errorEl.textContent = error.message;
+                    errorEl.classList.remove('hidden');
+                }
+            }
+
+            // --- Data Fetching ---
+            async function getPredictionFromServer(ticker) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/predict/${ticker}?provider=gpt`);
+                    if (!response.ok) return { error: `Server returned status ${response.status}` };
+                    const data = await response.json();
+                    const result = data.results['GPT-5'] || { error: 'Invalid response from server.'};
+                    result.history = data.history;
+                    result.target_date = data.target_date;
+                    return result;
+                } catch (error) {
+                    return { error: 'Could not connect to server.' };
+                }
+            }
+
+            // --- UI Rendering ---
+            function formatCurrency(value, sign = true) {
+                if (typeof value !== 'number') return 'N/A';
+                const options = { style: 'currency', currency: 'USD' };
+                if (!sign) options.currencyDisplay = 'narrowSymbol';
+                return new Intl.NumberFormat('en-US', options).format(value);
+            }
+
+            function renderRow(ticker, data) {
+                 const row = document.createElement('tr');
+                 row.className = 'table-row-fade-in clickable-row';
+                 if (ticker === activeTicker) row.classList.add('active-row');
+                 row.dataset.ticker = ticker;
+
+                if (!data || data.loading) {
+                    row.innerHTML = `<td class="px-4 py-4"><div class="font-bold text-white">${ticker}</div></td><td colspan="3" class="px-4 py-4 text-sm text-gray-400">Fetching prediction...</td>`;
+                    return row;
+                }
+                if (data.error) {
+                    row.innerHTML = `<td class="px-4 py-4"><div class="font-bold text-white">${ticker}</div></td><td colspan="3" class="px-4 py-4 text-sm text-red-400">${data.error}</td>`;
+                    return row;
+                }
+
+                // Current Price Trend
+                const prevPrice = data.previous_price;
+                const currentPrice = data.current_price;
+                let priceChangeClass = 'price-neutral-text', priceAnimationClass = '';
+                if (prevPrice && typeof currentPrice === 'number' && typeof prevPrice === 'number') {
+                    if (currentPrice > prevPrice) { priceChangeClass = 'price-up-text'; priceAnimationClass = 'price-up'; }
+                    else if (currentPrice < prevPrice) { priceChangeClass = 'price-down-text'; priceAnimationClass = 'price-down'; }
+                }
+
+                // Predicted Price Trend
+                let predChangeClass = 'price-neutral-text', predChangeSymbol = '—';
+                if (data.history && data.history.length > 1) {
+                    const lastPred = data.history[data.history.length - 2].predicted_price;
+                    const currentPred = data.predicted_price;
+                     if (currentPred > lastPred) { predChangeClass = 'price-up-text'; predChangeSymbol = '▲'; }
+                     else if (currentPred < lastPred) { predChangeClass = 'price-down-text'; predChangeSymbol = '▼'; }
+                }
+
+                // Calculate percentage change for predicted price
+                let predPercentText = '';
+                let predPercentClass = 'text-gray-500';
+                if (typeof data.current_price === 'number' && typeof data.predicted_price === 'number' && data.current_price > 0) {
+                    const percentChange = ((data.predicted_price - data.current_price) / data.current_price) * 100;
+                    if (percentChange >= 0) {
+                        predPercentClass = 'price-up-text';
+                        predPercentText = `(↑${percentChange.toFixed(2)}%)`;
+                    } else {
+                        predPercentClass = 'price-down-text';
+                        predPercentText = `(↓${Math.abs(percentChange).toFixed(2)}%)`;
+                    }
+                }
+
+                 row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap"><div class="text-sm font-bold text-white">${data.ticker}</div></td>
+                    <td class="px-4 py-4 whitespace-nowrap"><div class="text-sm font-semibold ${priceChangeClass} ${priceAnimationClass}">${formatCurrency(data.current_price)}</div></td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-300">
+                            ${formatCurrency(data.predicted_price)}
+                            <span class="ml-1 text-xs ${predPercentClass}">${predPercentText}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap"><div class="text-sm font-semibold ${predChangeClass}">${predChangeSymbol}</div></td>
+                `;
+                return row;
+            }
+
+            function renderPredictions() {
+                tableBodyEl.innerHTML = '';
+                STOCKS_TO_TRACK.forEach(ticker => {
+                    const data = stockDataStore.get(ticker);
+                    const row = renderRow(ticker, data);
+                    tableBodyEl.appendChild(row);
+                });
+            }
+
+            function renderPortfolio(portfolio) {
+                const summaryEl = document.getElementById('portfolio-summary');
+                portfolioBodyEl.innerHTML = '';
+                let totalValue = portfolio.cash;
+                let totalPnL = 0;
+
+                Object.entries(portfolio.positions).forEach(([ticker, pos]) => {
+                    const currentData = stockDataStore.get(ticker);
+                    const currentPrice = currentData?.current_price || pos.avg_price;
+                    const predictedPrice = currentData?.predicted_price;
+                    const currentValue = pos.shares * currentPrice;
+                    const pnl = (currentPrice - pos.avg_price) * pos.shares;
+                    totalValue += currentValue;
+                    totalPnL += pnl;
+
+                    const pnlClass = pnl > 0 ? 'price-up-text' : pnl < 0 ? 'price-down-text' : 'text-gray-300';
+
+                    let potentialPnlText = 'N/A';
+                    let potentialPnlClass = 'text-gray-400';
+                    if (typeof predictedPrice === 'number') {
+                        const potentialPnl = (predictedPrice - currentPrice) * pos.shares;
+                        potentialPnlText = formatCurrency(potentialPnl);
+                        potentialPnlClass = potentialPnl > 0 ? 'price-up-text' : potentialPnl < 0 ? 'price-down-text' : 'text-gray-300';
+                    }
+
+                    const row = `<tr>
+                        <td class="px-4 py-3 font-bold text-white">${ticker}</td>
+                        <td class="px-4 py-3 text-gray-300">${pos.shares}</td>
+                        <td class="px-4 py-3 text-gray-300">${formatCurrency(pos.avg_price)}</td>
+                        <td class="px-4 py-3 text-gray-300">${formatCurrency(currentValue)}</td>
+                        <td class="px-4 py-3 font-semibold ${pnlClass}">${formatCurrency(pnl)}</td>
+                        <td class="px-4 py-3 font-semibold ${potentialPnlClass}">${potentialPnlText}</td>
+                    </tr>`;
+                    portfolioBodyEl.insertAdjacentHTML('beforeend', row);
+                });
+
+                if (Object.keys(portfolio.positions).length === 0) {
+                     portfolioBodyEl.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-500">You have no open positions.</td></tr>`;
+                }
+
+                summaryEl.innerHTML = `
+                    <div><p class="text-xs text-gray-400">Portfolio Value</p><p class="text-lg font-bold text-white">${formatCurrency(totalValue)}</p></div>
+                    <div><p class="text-xs text-gray-400">Cash</p><p class="text-lg font-bold text-white">${formatCurrency(portfolio.cash)}</p></div>
+                    <div><p class="text-xs text-gray-400">Today's P/L</p><p class="text-lg font-bold ${totalPnL > 0 ? 'price-up-text' : totalPnL < 0 ? 'price-down-text' : 'text-white'}">${formatCurrency(totalPnL)}</p></div>
+                    <div><p class="text-xs text-gray-400">User ID</p><p class="text-lg font-mono text-gray-500 truncate" title="${userId}">${userId.substring(0, 10)}...</p></div>
+                `;
+            }
+
+            function selectTicker(ticker) {
+                activeTicker = ticker;
+
+                // Update table row styles
+                document.querySelectorAll('#stock-table-body tr').forEach(r => {
+                    r.classList.toggle('active-row', r.dataset.ticker === ticker);
+                });
+
+                const data = stockDataStore.get(ticker);
+                if (!data || data.error) return;
+
+                document.getElementById('details-placeholder').classList.add('hidden');
+                document.getElementById('details-content').classList.remove('hidden');
+
+                document.getElementById('details-ticker').textContent = data.ticker;
+                document.getElementById('details-target-date').textContent = data.target_date || '2025-09-19';
+                document.getElementById('details-current-price').textContent = formatCurrency(data.current_price);
+
+                // Update predicted price with percentage change
+                const predictedPriceEl = document.getElementById('details-predicted-price');
+                let predPercentText = '';
+                let predPercentClass = 'text-gray-500';
+                if (typeof data.current_price === 'number' && typeof data.predicted_price === 'number' && data.current_price > 0) {
+                    const percentChange = ((data.predicted_price - data.current_price) / data.current_price) * 100;
+                    if (percentChange >= 0) {
+                        predPercentClass = 'price-up-text';
+                        predPercentText = `(↑${percentChange.toFixed(2)}%)`;
+                    } else {
+                        predPercentClass = 'price-down-text';
+                        predPercentText = `(↓${Math.abs(percentChange).toFixed(2)}%)`;
+                    }
+                }
+                predictedPriceEl.innerHTML = `${formatCurrency(data.predicted_price)} <span class="ml-2 text-sm font-medium ${predPercentClass}">${predPercentText}</span>`;
+
+                document.getElementById('details-reasoning').textContent = data.reasoning || 'No reason provided.';
+
+                const potentialProfitEl = document.getElementById('potential-trade-profit');
+                if (typeof data.current_price === 'number' && typeof data.predicted_price === 'number') {
+                    const potentialProfit = data.predicted_price - data.current_price;
+                    const profitClass = potentialProfit >= 0 ? 'price-up-text' : 'price-down-text';
+                    potentialProfitEl.innerHTML = `AI predicts a potential <span class="font-bold ${profitClass}">${formatCurrency(potentialProfit)}</span> profit per share.`;
+                } else {
+                    potentialProfitEl.textContent = 'Potential profit could not be calculated.';
+                }
+
+                // Update Chart
+                const ctx = document.getElementById('predictionChart').getContext('2d');
+                const labels = data.history.map(h => new Date(h.timestamp * 1000).toLocaleTimeString());
+                const currentPrices = data.history.map(h => h.current_price);
+                const predictedPrices = data.history.map(h => h.predicted_price);
+
+                if (chartInstance) chartInstance.destroy();
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Current Price', data: currentPrices, borderColor: '#3b82f6', tension: 0.1, fill: false },
+                            { label: 'AI Predicted Price', data: predictedPrices, borderColor: '#a855f7', tension: 0.1, fill: false, borderDash: [5, 5] }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { y: { ticks: { color: '#9ca3af' } }, x: { ticks: { color: '#9ca3af' } } },
+                        plugins: { legend: { labels: { color: '#d1d5db' } } }
+                    }
+                });
+            }
+
+            // --- Main Application Flow ---
+            async function fetchAndRenderData() {
+                console.log("Fetching new predictions...");
+                STOCKS_TO_TRACK.forEach(t => !stockDataStore.has(t) && stockDataStore.set(t, { loading: true }));
+                renderPredictions();
+
+                const fetchPromises = STOCKS_TO_TRACK.map(async (ticker) => {
+                    const newData = await getPredictionFromServer(ticker);
+                    const oldData = stockDataStore.get(ticker);
+                    stockDataStore.set(ticker, { ...newData, previous_price: oldData?.current_price });
+                });
+                await Promise.all(fetchPromises);
+
+                renderPredictions();
+                fetchPortfolio(); // Refresh portfolio with latest prices
+                if (activeTicker) selectTicker(activeTicker); // Re-select to update details
+
+                lastUpdatedEl.textContent = new Date().toLocaleTimeString();
+                startCountdown();
+            }
+
+            function startCountdown() {
+                if (countdownInterval) clearInterval(countdownInterval);
+                let timeLeft = UPDATE_INTERVAL;
+                const updateTimer = () => {
+                    timeLeft -= 1000;
+                    if (timeLeft < 0) {
+                        clearInterval(countdownInterval);
+                        countdownEl.textContent = 'Updating...';
+                        return;
+                    }
+                    const minutes = Math.floor(timeLeft / 60000);
+                    const seconds = Math.floor((timeLeft % 60000) / 1000);
+                    countdownEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                };
+                updateTimer();
+                countdownInterval = setInterval(updateTimer, 1000);
+            }
+
+            // --- Event Listeners ---
+            tableBodyEl.addEventListener('click', (e) => {
+                const row = e.target.closest('tr');
+                if (row && row.dataset.ticker) {
+                    selectTicker(row.dataset.ticker);
+                }
+            });
+
+            document.getElementById('buy-btn').addEventListener('click', () => {
+                const shares = parseInt(document.getElementById('trade-shares').value);
+                const price = stockDataStore.get(activeTicker)?.current_price;
+                if (activeTicker && shares > 0 && price) {
+                    executeTrade(activeTicker, 'buy', shares, price);
+                }
+            });
+
+            document.getElementById('sell-btn').addEventListener('click', () => {
+                const shares = parseInt(document.getElementById('trade-shares').value);
+                const price = stockDataStore.get(activeTicker)?.current_price;
+                if (activeTicker && shares > 0 && price) {
+                    executeTrade(activeTicker, 'sell', shares, price);
+                }
+            });
+
+            // --- Initial Load ---
+            initializeUser();
+            fetchAndRenderData();
+            setInterval(fetchAndRenderData, UPDATE_INTERVAL);
+        });
+    </script>
+</body>
+</html>
