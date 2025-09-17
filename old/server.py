@@ -37,7 +37,7 @@ user_portfolios = {}  # Stores paper trading data for each user
 @app.route('/', methods=['GET'])
 def home():
     """Serves the main stock_predictions.html file."""
-    return send_from_directory('.', 'stock_predictions.html')
+    return send_from_directory('..', 'stock_predictions.html')
 
 
 # --- API Endpoints ---
