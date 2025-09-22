@@ -1,6 +1,2 @@
-/.firebasearc
 /deploy.sh
-/firebase.json
-/serviceAccountKey.json
 /steps
-/static/js/auth.js
