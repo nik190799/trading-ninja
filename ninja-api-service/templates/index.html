@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradingNinja — Trend Predictions & Community</title>
+  <meta name="description" content="TradingNinja: Predict market & real-world trends. Join the community for posts, polls, and insights." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- The linked stylesheet is likely causing conflicts. The embedded styles are more specific. -->
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> -->
+  <style>
+    :root{
+      --bg:#0a0a0c;
+      --bg-soft:#111115;
+      --border: rgba(255, 255, 255, 0.1);
+      --muted:#888892;
+      --text:#f0f0f5;
+      --accent:#ff6a00;
+      --accent-soft: rgba(255, 106, 0, 0.1);
+      --accent-hover:#ff8529;
+      --success:#17d897;
+      --danger:#ff5470;
+      --shadow:0 8px 24px rgba(0,0,0,.5);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0;
+      background-color: var(--bg);
+      background-image: radial-gradient(circle at 10% 20%, rgba(255,106,0,.15), transparent 35%),
+                        radial-gradient(circle at 95% 80%, rgba(255,106,0,.1), transparent 30%);
+      color:var(--text);
+      font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      line-height:1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a{color:var(--accent); text-decoration:none; transition: color .2s ease;}
+    a:hover{color: var(--accent-hover)}
+    .container{width:100%; max-width:1140px; margin:0 auto; padding:0 20px}
+    header{
+      position:sticky; top:0; z-index:30;
+      backdrop-filter:saturate(150%) blur(8px);
+      background:rgba(10, 10, 12, 0.75);
+      border-bottom:1px solid var(--border);
+    }
+    .nav{display:flex; align-items:center; justify-content:space-between; padding:16px 0}
+    .brand{display:flex; align-items:center; gap:12px; font-weight:700; font-size: 20px;}
+    .brand-badge{
+      width:36px; height:36px; border-radius:10px;
+      background: var(--accent);
+      display:grid; place-items:center;
+      box-shadow: 0 4px 12px rgba(255, 106, 0, 0.25);
+    }
+    .brand-badge svg{ width: 20px; height: 20px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));}
+    .nav-links a{margin:0 16px; color:var(--text); font-weight:500; font-size: 15px; transition: color 0.2s;}
+    .nav-links a:hover{color:var(--accent)}
+    .cta, .btn{
+      display:inline-grid; place-items:center; padding:10px 20px;
+      border-radius:8px; color: #fff; font-weight:600;
+      background: var(--accent);
+      box-shadow: 0 5px 15px rgba(255,106,0,.25);
+      transition: all .2s ease;
+      cursor: pointer;
+      border:none;
+      font-family: inherit;
+      font-size: 15px;
+    }
+    .cta:hover, .btn:hover{transform:translateY(-2px); box-shadow: 0 8px 20px rgba(255,106,0,.3); background: var(--accent-hover);}
+    .hero{padding:96px 0 80px; text-align: center;}
+    .headline{font-size:56px; line-height:1.1; letter-spacing:-.02em; margin:0 0 16px; font-weight: 800;}
+    .subhead{color:var(--muted); font-size:20px; margin: 0 auto 32px; max-width: 680px;}
+    .ghost{
+        border:1px solid var(--border);
+        background-color: transparent;
+        color:var(--text);
+    }
+    .ghost:hover {
+        background-color: var(--accent-soft);
+        border-color: var(--accent);
+        color: #fff;
+    }
+    .ticker{overflow:hidden; border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-soft); position:relative; margin-top:80px;}
+    .ticker-track{display:flex; gap:28px; padding:12px 20px; white-space:nowrap; animation:scroll 30s linear infinite}
+    @keyframes scroll{from{transform:translateX(0)} to{transform:translateX(-50%)} }
+    .chip{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; background:var(--bg); font-size: 14px; border: 1px solid var(--border);}
+    .chip .up{color:var(--success); font-weight:600}
+    .chip .down{color:var(--danger); font-weight:600}
+    section{padding:80px 0}
+    .section-title{text-align: center; margin-bottom:48px}
+    .section-title h2{margin:0 0 12px; font-size:40px; font-weight: 700; letter-spacing: -0.02em;}
+    .section-title p { max-width: 600px; margin: 0 auto; color: var(--muted); font-size: 18px; }
+    .cta-block{
+      text-align: center;
+      border:1px solid var(--border);
+      background:var(--bg-soft);
+      border-radius:var(--radius);
+      padding:56px 24px;
+    }
+    .cta-block h2 { margin:0 0 12px; font-size: 32px; letter-spacing: -0.02em; }
+    footer{padding:40px 0; color:var(--muted); border-top: 1px solid var(--border); margin-top: 80px;}
+    .footer-content {
+        display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap
+    }
+    @media (max-width: 768px){
+        .headline{font-size:44px}
+        .subhead { font-size: 18px; }
+        .hero { padding: 64px 0; }
+        section { padding: 64px 0; }
+        .nav-links{display:none}
+        .footer-content {
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <a href="#" class="brand">
+        <div class="brand-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 20l6-6-2-2-4 8zm10-10l2 2 4-8-6 6z" stroke="#0b0b0d" stroke-width="1.5" fill="#fff"/>
+          </svg>
+        </div>
+        <span>Trading<span style="color:var(--accent)">Ninja</span></span>
+      </a>
+      <nav class="nav-links">
+        <a href="#markets">Markets</a>
+        <a href="#predictions">Predictions</a>
+        <a href="#community">Community</a>
+      </nav>
+      <!-- Authentication Section -->
+      <div id="auth-container">
+        <button id="login-btn" class="cta">Login with Google</button>
+        <div id="user-profile" style="display: none; align-items: center; gap: 12px;">
+            <img id="user-pic" src="" alt="User Avatar" style="width: 36px; height: 36px; border-radius: 50%;">
+            <span id="user-name" style="font-weight: 500;"></span>
+            <button id="logout-btn" class="cta ghost">Logout</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <h1 class="headline">Predict the Future. Win Today.</h1>
+        <p class="subhead">Join a community of traders and enthusiasts making bold predictions on everything from market trends to global events.</p>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; justify-content: center;">
+            <a href="#cta" class="cta">Start Predicting</a>
+            <a href="#community" class="cta ghost">Join Community</a>
+        </div>
+        <div class="ticker">
+            <div class="ticker-track">
+                <div class="chip">BTC/USD <span class="up">+2.5%</span></div>
+                <div class="chip">ETH/USD <span class="up">+4.1%</span></div>
+                <div class="chip">TSLA <span class="down">-1.8%</span></div>
+                <div class="chip">Will AI reach AGI by 2030? <span class="up">Yes 65%</span></div>
+                <div class="chip">NVDA <span class="up">+5.2%</span></div>
+                <div class="chip">Next US President? <span class="down">Dem 48%</span></div>
+                 <!-- Duplicate for seamless scroll -->
+                <div class="chip">BTC/USD <span class="up">+2.5%</span></div>
+                <div class="chip">ETH/USD <span class="up">+4.1%</span></div>
+                <div class="chip">TSLA <span class="down">-1.8%</span></div>
+                <div class="chip">Will AI reach AGI by 2030? <span class="up">Yes 65%</span></div>
+                <div class="chip">NVDA <span class="up">+5.2%</span></div>
+                <div class="chip">Next US President? <span class="down">Dem 48%</span></div>
+            </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Other sections can be added here -->
+
+    <section id="cta" class="container">
+        <div class="cta-block">
+            <h2>Ready to Test Your Insight?</h2>
+            <p style="color:var(--muted); max-width: 600px; margin: 0 auto 32px;">Sign up now to start making predictions, follow top ninjas, and climb the leaderboard. Your first prediction is on us.</p>
+            <button class="cta" onclick="document.getElementById('login-btn').click();">
+                Get Started for Free
+            </button>
+        </div>
+    </section>
+  </main>
+
+  <footer class="container">
+    <div class="footer-content">
+       <div class="brand" style="opacity:.8; font-size: 16px;">
+        <span>Trading<span style="color:var(--accent)">Ninja</span></span>
+      </div>
+      <div id="auth-status" style="font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace;">
+        Connecting...
+      </div>
+      <div style="display:flex; gap:20px; font-size: 14px;">
+        <a href="#" style="color: var(--muted);">Terms</a>
+        <a href="#" style="color: var(--muted);">Privacy</a>
+        <a href="#" style="color: var(--muted);">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+  <!-- Your Scripts -->
+  <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>
